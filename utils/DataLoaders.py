@@ -1,0 +1,72 @@
+import torch
+import glob
+import random
+import pandas as pd
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
+from fastai.data.core import TfmdLists
+from fastai.data.transforms import Transform, RandomSplitter
+
+class TransformPd_multInput(Transform):
+    def __init__(self, path='/content/drive/MyDrive/ML_CEI/'):
+        self.atom_ind_dict = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9, 'Si': 14, 'P':15, 'S': 16, 'Cl':17, 'Br':35}
+        self.atom_mass_dict = {'H':1.00797, 'C':12.011, 'N':14.007, 'O':15.999, 'F':18.99840316, 'Si': 28.085, 'P': 30.97376200, 'S': 32.07, 'Cl':35.45, 'Br':79.90}
+        self.ind_atom_dict = {v:k for k,v in self.atom_ind_dict.items()}
+        self.path = path
+    def encodes(self, pkl_idx):
+        mol_tp = pkl_idx.split(',')[0]
+        num_atoms = int((mol_tp.split('_'))[0])
+        df = pd.read_pickle(self.path+mol_tp+'.pkl')
+        row = df.iloc[int(pkl_idx.split(',')[1])]
+        anchor_indexes = [row.ptc1,row.ptc2]
+        indexes = anchor_indexes+[i for i in range(1,num_atoms+1) if i not in anchor_indexes]
+        
+        columns = ['atom_'+str(index) for index in indexes]
+        atoms = (row[columns].apply(lambda x: self.atom_ind_dict[x])).tolist()
+        
+        columns = ['q_'+str(index) for index in indexes]
+        charges = (row[columns]).tolist()
+        
+        columns = [dim+'_'+str(index) for index in indexes for dim in ['x','y','z']]
+        xyz = (row[columns]).tolist()
+        
+        columns = [dim+'_'+str(index) for index in indexes for dim in ['px','py','pz']]
+        pxpypz = (row[columns]).tolist()
+
+        pos_raw = torch.tensor(xyz, dtype=torch.float32).view(-1,3)
+        pos_raw[torch.isnan(pos_raw)] = 0
+        
+        return Data(z = torch.tensor(atoms, dtype=torch.long),q = torch.tensor(charges, dtype=torch.long),
+                     y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
+
+class GeomDataLoaders():
+    def __init__(self,dataset, batch_size, sampler=None):
+        self.train = DataLoader(dataset.train, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset.train, batch_size=batch_size, shuffle=True)
+        self.valid = DataLoader(dataset.valid, batch_size=batch_size, shuffle=False)
+
+
+def Get_Dataset(pkl_path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset_pd/', 
+                       valid_pct=0.08, seed=1992, rank=0):
+    pkls = glob.glob(pkl_path+'*.pkl')
+    pkl_idxs = []
+    for pkl in pkls:
+      df = pd.read_pickle(pkl)
+      mol_tp = pkl.split('/')[-1].split('.')[0]
+      mol_tps = [mol_tp]*df.shape[0]
+      pkl_idxs += [f"{mt},{idx}" for mt, idx in zip(mol_tps, df.index)]
+
+    splits = RandomSplitter(valid_pct=valid_pct,seed=seed)(pkl_idxs)
+
+    tfm = TransformPd_multInput(path=pkl_path) 
+    tls = TfmdLists(pkl_idxs, tfm, splits=splits) 
+    
+    if rank==0: 
+        print('# of valid:', len(tls.valid), '# of train:', len(tls.train))
+        
+    return tls
+
+def Create_DataLoaders(tls, batch_size=128, sampler=None):
+    
+    dls = GeomDataLoaders(tls, batch_size, sampler=sampler)
+    
+    return dls
