@@ -40,33 +40,33 @@ class TransformPd_multInput(Transform):
                      y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
 
 class GeomDataLoaders():
-    def __init__(self,dataset, batch_size, sampler=None):
-        self.train = DataLoader(dataset.train, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset.train, batch_size=batch_size, shuffle=True)
-        self.valid = DataLoader(dataset.valid, batch_size=batch_size, shuffle=False)
+    def __init__(self,dataset_train, dataset_valid, batch_size, sampler=None):
+        self.train = DataLoader(dataset_train, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
+        self.valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
 
 
-def Get_Dataset(pkl_path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset_pd/', 
-                       valid_pct=0.08, seed=1992, rank=0):
-    pkls = glob.glob(pkl_path+'*.pkl')
-    pkl_idxs = []
-    for pkl in pkls:
-      df = pd.read_pickle(pkl)
-      mol_tp = pkl.split('/')[-1].split('.')[0]
-      mol_tps = [mol_tp]*df.shape[0]
-      pkl_idxs += [f"{mt},{idx}" for mt, idx in zip(mol_tps, df.index)]
+def Get_Dataset(path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset/', rank=0):
 
-    splits = RandomSplitter(valid_pct=valid_pct,seed=seed)(pkl_idxs)
-
-    tfm = TransformPd_multInput(path=pkl_path) 
-    tls = TfmdLists(pkl_idxs, tfm, splits=splits) 
-    
-    if rank==0: 
-        print('# of valid:', len(tls.valid), '# of train:', len(tls.train))
+    dtps = ['train', 'valid']
+    tls_dict = {}
+    for dtp in dtps:
+        pkls = glob.glob(path+dtp+'/*.pkl')
+        pkl_idxs = []
+        for pkl in pkls:
+            df = pd.read_pickle(pkl)
+            mol_tp = pkl.split('/')[-1].split('.')[0]
+            mol_tps = [mol_tp]*df.shape[0]
+            pkl_idxs += [f"{mt},{idx}" for mt, idx in zip(mol_tps, df.index)]
+            tfm = TransformPd_multInput(path=path+dtp+'/') 
+            tls_dict[dtp] = TfmdLists(pkl_idxs, tfm, splits=None) 
         
-    return tls
+    if rank==0: 
+        print('# of valid:', len(tls_dict['valid'].train), '# of train:', len(tls_dict['train'].train))
+        
+    return tls_dict['train'], tls_dict['valid']
 
-def Create_DataLoaders(tls, batch_size=128, sampler=None):
+def Create_DataLoaders(tls_train, tls_valid, batch_size=128, sampler=None):
     
-    dls = GeomDataLoaders(tls, batch_size, sampler=sampler)
+    dls = GeomDataLoaders(tls_train, tls_valid, batch_size, sampler=sampler)
     
     return dls
