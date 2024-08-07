@@ -40,9 +40,9 @@ class TransformPd_multInput(Transform):
                      y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
 
 class GeomDataLoaders():
-    def __init__(self,dataset_train, dataset_valid, batch_size, sampler=None):
+    def __init__(self,dataset_train, dataset_valid, batch_size, sampler=None, vshuffle=False):
         self.train = DataLoader(dataset_train, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-        self.valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
+        self.valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=vshuffle)
 
 
 def Get_Dataset(path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset/', rank=0):
@@ -65,8 +65,8 @@ def Get_Dataset(path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset/', rank=
         
     return tls_dict['train'], tls_dict['valid']
 
-def Create_DataLoaders(tls_train, tls_valid, batch_size=128, sampler=None):
+def Create_DataLoaders(tls_train, tls_valid, batch_size=128, sampler=None, vshuffle=False):
     
-    dls = GeomDataLoaders(tls_train, tls_valid, batch_size, sampler=sampler)
+    dls = GeomDataLoaders(tls_train, tls_valid, batch_size, sampler=sampler, vshuffle=vshuffle)
     
     return dls
