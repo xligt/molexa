@@ -71,7 +71,7 @@ class XMolNet(nn.Module):
 
         self.Denoiser = Denoiser(sigma_data=self.sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads)
 
-        self.layers = [self.EMB_z, self.EMB_z, self.Linear_pos]
+        self.layers = [self.EMB_z, self.EMB_q, self.Linear_pos]
         self.mods = [self.Prj_edge, self.Denoiser]
         self.blocks = [self.Att_Blocks]
 
