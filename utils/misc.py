@@ -30,13 +30,21 @@ def FindModel(directory):
 def GetModel(device):
     
     diffu_params = \
-    {'y_c': tensor([0., 0., -0.]),
-     'y_hw': tensor([12.28458,  9.14532,  6.19654]),
+    {'y_c': tensor([0., 0., 0.]),
+     'y_hw': tensor([23.75347, 19.92131, 15.97011]),
      'n_diffu': 8,
      'P_mean': -1.2,
      'P_std': 1.2,
-     'sigma_data': 0.26}
-
+     'sigma_data': 0.25}
+    
+#diffu_params = \
+#    {'y_c': tensor([0., 0., -0.]),
+#     'y_hw': tensor([12.28458,  9.14532,  6.19654]),
+#     'n_diffu': 8,
+#     'P_mean': -1.2,
+#     'P_std': 1.2,
+#     'sigma_data': 0.26}
+#
     natts_diffu = 2
 
     # diffu_params = \

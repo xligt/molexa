@@ -149,7 +149,7 @@ class XMolNet(nn.Module):
             
             self.D_yn = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
                                sigma_min=self.sigma_min, sigma_max=self.sigma_max, rho=self.rho, S_churn=self.S_churn, S_min=self.S_min, S_max=self.S_max, 
-                                S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device='cuda')
+                                S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device=pos.device)
             self.D_yn = self.D_yn*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
             
             return self.D_yn
