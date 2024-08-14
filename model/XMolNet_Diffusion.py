@@ -7,7 +7,7 @@ import numpy as np
 
 from utils.utils_ML import initialization, ResBlock, ResLayer, LayerNorm
 
-from .Attention_Block import Attention_Block
+from .Attention_Block import Attention_Block, UFO
 from .XMolNet_Attention import NodeAttentionLayer
 
 class PositionalEmbedding(nn.Module):
@@ -52,7 +52,7 @@ class NoiseIdentifier(nn.Module):
         #self.Attention_Encoder = NodeAttentionLayer(tf_in_dim=self.att_dim,tf_out_dim=self.att_dim, nheads=nheads, dot_product=dot_product, rga=self.rga, rgb=self.rgb) 
         
         self.Prj_preAtt = ResLayer(self.num_channels*4 + self.att_dim, self.att_dim, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1)  
-
+        self.UFO = UFO(self.att_dim)
         self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1,  
                                                          rga=self.rga, rgb=self.rgb) for i in range(natts)]) #to be verified       
 
@@ -82,7 +82,8 @@ class NoiseIdentifier(nn.Module):
             for mod in block:
                 mod.reset_parameters()
 
-            
+        self.UFO.reset_parameters()
+
     def forward(self, x, sigma, edge_ij, i_node, j_node, idx_i_edge, idx_j_edge):
         emb = self.EMB_sigma(sigma)
         emb = self.Linear_emb(emb)
@@ -96,9 +97,10 @@ class NoiseIdentifier(nn.Module):
         
         edge_ij = torch.cat((x[:,i_node], x[:,j_node], edge_ij), dim=-1)  
         edge_ij = self.Prj_preAtt(edge_ij)
-
+        edge_ij_mem = edge_ij.clone()
         for i in range(self.natts):
             edge_ij = self.Att_Blocks[i](edge_ij, idx_i_edge, idx_j_edge)
+            edge_ij, edge_ij_mem = self.UFO(edge_ij, edge_ij_mem)
 
         x = scatter(edge_ij, i_node, dim=1, reduce='add')
         x1 = self.LN1(x)

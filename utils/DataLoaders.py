@@ -1,5 +1,5 @@
 import torch
-import glob
+import os, glob
 import random
 import pandas as pd
 from torch_geometric.data import Data
@@ -8,16 +8,16 @@ from fastai.data.core import TfmdLists
 from fastai.data.transforms import Transform, RandomSplitter
 
 class TransformPd_multInput(Transform):
-    def __init__(self, path='/content/drive/MyDrive/ML_CEI/'):
+    def __init__(self):
         self.atom_ind_dict = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9, 'Si': 14, 'P':15, 'S': 16, 'Cl':17, 'Br':35}
         self.atom_mass_dict = {'H':1.00797, 'C':12.011, 'N':14.007, 'O':15.999, 'F':18.99840316, 'Si': 28.085, 'P': 30.97376200, 'S': 32.07, 'Cl':35.45, 'Br':79.90}
         self.ind_atom_dict = {v:k for k,v in self.atom_ind_dict.items()}
-        self.path = path
+        
     def encodes(self, pkl_idx):
-        mol_tp = pkl_idx.split(',')[0]
+        pkl, mol_tp, pkl_ind = pkl_idx.split(',')
         num_atoms = int((mol_tp.split('_'))[0])
-        df = pd.read_pickle(self.path+mol_tp+'.pkl')
-        row = df.iloc[int(pkl_idx.split(',')[1])]
+        df = pd.read_pickle(pkl)
+        row = df.iloc[int(pkl_ind)]
         anchor_indexes = [row.ptc1,row.ptc2]
         indexes = anchor_indexes+[i for i in range(1,num_atoms+1) if i not in anchor_indexes]
         
@@ -50,15 +50,16 @@ def Get_Dataset(path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset/', rank=
     dtps = ['train', 'valid']
     tls_dict = {}
     for dtp in dtps:
-        pkls = glob.glob(path+dtp+'/*.pkl')
+        pkls = glob.glob(os.path.join(path+dtp, '**', '*.pkl'), recursive=True)
         pkl_idxs = []
         for pkl in pkls:
             df = pd.read_pickle(pkl)
             mol_tp = pkl.split('/')[-1].split('.')[0]
             mol_tps = [mol_tp]*df.shape[0]
-            pkl_idxs += [f"{mt},{idx}" for mt, idx in zip(mol_tps, df.index)]
-            tfm = TransformPd_multInput(path=path+dtp+'/') 
-            tls_dict[dtp] = TfmdLists(pkl_idxs, tfm, splits=None) 
+            pkl_repeat = [pkl]*df.shape[0]
+            pkl_idxs += [f"{pklf},{mt},{idx}" for pklf, mt, idx in zip(pkl_repeat, mol_tps, df.index)]
+        tfm = TransformPd_multInput() 
+        tls_dict[dtp] = TfmdLists(pkl_idxs, tfm, splits=None) 
         
     if rank==0: 
         print('# of valid:', len(tls_dict['valid'].train), '# of train:', len(tls_dict['train'].train))

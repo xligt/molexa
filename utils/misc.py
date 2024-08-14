@@ -30,13 +30,13 @@ def FindModel(directory):
 def GetModel(device):
     
     diffu_params = \
-    {'y_c': tensor([0., 0., 0.]),
-     'y_hw': tensor([23.75347, 19.92131, 15.97011]),
-     'n_diffu': 8,
+    {'y_c': tensor([0., -0., -0.]),
+     'y_hw': tensor([23.59669, 19.97351, 15.76245]),
+     'n_diffu': 2,#8,
      'P_mean': -1.2,
      'P_std': 1.2,
-     'sigma_data': 0.25}
-    
+     'sigma_data': 0.25}  
+
 #diffu_params = \
 #    {'y_c': tensor([0., 0., -0.]),
 #     'y_hw': tensor([12.28458,  9.14532,  6.19654]),
@@ -45,7 +45,7 @@ def GetModel(device):
 #     'P_std': 1.2,
 #     'sigma_data': 0.26}
 #
-    natts_diffu = 2
+    natts_diffu = 6#2
 
     # diffu_params = \
     # {'y_c': tensor([0., -0., 0.]),
@@ -63,8 +63,8 @@ def GetModel(device):
     q_emb_dim = 64
     pos_out_dim = 64
     
-    natts = 6
-    scale = 4#2
+    natts = 8#6
+    scale = 4
     att_dim = int(128*scale)
     nheads = int(8*scale)
     

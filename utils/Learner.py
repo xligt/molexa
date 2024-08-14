@@ -98,7 +98,7 @@ class Learner():
 
     def load_checkpoint(self, save_id=0, load_opt=True):
         if self.parallel:
-            checkpoint = torch.load(self.load_path, map_location = {'cuda:%d' % save_id: 'cuda:%d' % self.rank})
+            checkpoint = torch.load(self.load_path, map_location = {'cuda:%d' % save_id: 'cuda:%d' % self.device_id})
             self.model.module.load_state_dict(checkpoint['model_state_dict'])
         else:
             checkpoint = torch.load(self.load_path, map_location='cuda:0')
