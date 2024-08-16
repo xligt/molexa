@@ -15,7 +15,7 @@ class mLSTM(nn.Module):
         self.nheads = nheads     
         self.rga = rga
         self.rgb = rgb
-        self.last_dim   = 2 #if self.rga=='n (h d) -> h n d' else 3
+        self.last_dim = 2 if self.rga=='n (h d) -> h n d' else 3
         self.scale = math.sqrt(self.tf_out_dim/self.nheads)   
         self.gate = gate
 
@@ -38,7 +38,7 @@ class mLSTM(nn.Module):
         q, k, v, o = torch.chunk(qkvo, 4, dim=-1)
         k = k/self.scale
     
-        ct = torch.einsum('ijk,ijl->ijkl', v, k)
+        ct = torch.einsum('ijk,ijl->ijkl', v, k) if self.rga=='n (h d) -> h n d' else torch.einsum('hijk,hijl->hijkl', v, k) #note that the h here is diffu index, rather than head. h is only head in rga or rgb
 
         uf = self.UF(x)
         uf = rearrange(uf, self.rga, h=self.nheads)
@@ -60,11 +60,11 @@ class mLSTM(nn.Module):
                 u = torch.exp(u - self.m)
                 f = torch.exp(f + mprev - self.m)
 
-            c = f.unsqueeze(3)*c + u.unsqueeze(3)*ct     
+            c = f.unsqueeze(3)*c + u.unsqueeze(3)*ct if self.rga=='n (h d) -> h n d' else f.unsqueeze(4)*c + u.unsqueeze(4)*ct 
             self.n = f*self.n + u*k
 
-        h= torch.einsum('ijkl,ijl->ijk', ct, q)
-        nm = torch.abs(torch.einsum('ijk,ijk->ij', self.n, q))
+        h= torch.einsum('ijkl,ijl->ijk', ct, q) if self.rga=='n (h d) -> h n d' else torch.einsum('hijkl,hijl->hijk', ct, q)
+        nm = torch.abs(torch.einsum('ijk,ijk->ij', self.n, q)) if self.rga=='n (h d) -> h n d' else torch.abs(torch.einsum('hijk,hijk->hij', self.n, q))
         h = h/torch.max(torch.cat((nm, torch.ones_like(nm)), dim=self.last_dim-1), dim=self.last_dim-1, keepdim=True).values.unsqueeze(self.last_dim)
 
         h = h*torch.sigmoid(o)

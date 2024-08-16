@@ -18,7 +18,7 @@ class with_cbs:
 
 class Learner():
     def __init__(self, model, dls=(0,), loss_func=F.mse_loss, val_loss_func=F.mse_loss, cbs=None, load_path=None, opt_func=torch.optim.Adam, 
-                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None):
+                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None, freeze=False):
         cbs = fc.L(cbs)
         fc.store_attr()
 
@@ -68,7 +68,10 @@ class Learner():
             if beta1 is not None: self.beta1 = beta1
             if beta2 is not None: self.beta2 = beta2
             if self.opt_func: 
-                self.opt = self.opt_func(self.model.parameters(), lr=self.lr, betas=(self.beta1,self.beta2)) 
+                if self.freeze:
+                    self.opt = self.opt_func(filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.lr, betas=(self.beta1,self.beta2)) 
+                else:
+                    self.opt = self.opt_func(self.model.parameters(), lr=self.lr, betas=(self.beta1,self.beta2)) 
 
             if self.load_path:
                 self.load_checkpoint()
@@ -104,7 +107,7 @@ class Learner():
             checkpoint = torch.load(self.load_path, map_location='cuda:0')
             self.model.load_state_dict(checkpoint['model_state_dict'])
         
-        if load_opt: self.opt.load_state_dict(checkpoint['optimizer_state_dict'])
+        if load_opt and not self.freeze: self.opt.load_state_dict(checkpoint['optimizer_state_dict'])
   
     
     @property

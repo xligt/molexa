@@ -60,6 +60,7 @@ class XMolNet(nn.Module):
 
         if self.lstm:      
             self.UFO = UFO(self.att_dim)
+            #self.UFO = mLSTM(tf_in_dim=self.att_dim, tf_out_dim=self.att_dim, nheads=nheads)
 
         self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=self.nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=norm, norm_dim=-1) for i in range(natts)])
 
