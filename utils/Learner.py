@@ -18,7 +18,7 @@ class with_cbs:
 
 class Learner():
     def __init__(self, model, dls=(0,), loss_func=F.mse_loss, val_loss_func=F.mse_loss, cbs=None, load_path=None, opt_func=torch.optim.Adam, 
-                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None, freeze=False):
+                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None, freeze=False, load_opt=True):
         cbs = fc.L(cbs)
         fc.store_attr()
 
@@ -74,7 +74,7 @@ class Learner():
                     self.opt = self.opt_func(self.model.parameters(), lr=self.lr, betas=(self.beta1,self.beta2)) 
 
             if self.load_path:
-                self.load_checkpoint()
+                self.load_checkpoint(load_opt=self.load_opt)
                 self.load_path = None            
                 self.lr = self.opt.param_groups[0]['lr']
                 self.beta1 = self.opt.param_groups[0]['betas'][0]
