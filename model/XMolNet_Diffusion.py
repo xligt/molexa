@@ -37,7 +37,7 @@ class FourierEmbedding(nn.Module):
 
 
 class NoiseIdentifier(nn.Module):
-    def __init__(self, EMB=FourierEmbedding, num_channels=256, natts=2, att_dim=512, nheads=8, dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU):
+    def __init__(self, EMB=FourierEmbedding, num_channels=256, natts=2, att_dim=512, nheads=8, dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, dropout_prob=None):
         super().__init__()
         self.rga = 'm n (h d) -> m h n d' 
         self.rgb = 'm h n d -> m n (h d)' 
@@ -55,9 +55,9 @@ class NoiseIdentifier(nn.Module):
         self.UFO = UFO(self.att_dim)
         #self.UFO = mLSTM(tf_in_dim=self.att_dim, tf_out_dim=self.att_dim, nheads=nheads)
         self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1,  
-                                                         rga=self.rga, rgb=self.rgb) for i in range(natts)]) #to be verified       
+                                                         rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob) for i in range(natts)]) #to be verified       
 
-        self.Attention_Decoder = NodeAttentionLayer(tf_in_dim=self.att_dim,tf_out_dim=self.att_dim, nheads=nheads, dot_product=dot_product, rga=self.rga, rgb=self.rgb)        
+        self.Attention_Decoder = NodeAttentionLayer(tf_in_dim=self.att_dim,tf_out_dim=self.att_dim, nheads=nheads, dot_product=dot_product, rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob)        
 
         self.Prj_out = ResLayer(self.att_dim, 3, res=res, act1=act1, act2=None, norm=None) 
         
@@ -113,10 +113,10 @@ class NoiseIdentifier(nn.Module):
         return out
         
 class Denoiser(nn.Module):
-    def __init__(self, sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=2, att_dim=512, nheads=8):
+    def __init__(self, sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=2, att_dim=512, nheads=8, dropout_prob=None):
         super().__init__()
         
-        self.model = model(EMB=EMB, num_channels=num_channels, natts=natts, att_dim=att_dim, nheads=nheads)
+        self.model = model(EMB=EMB, num_channels=num_channels, natts=natts, att_dim=att_dim, nheads=nheads, dropout_prob=dropout_prob)
         self.sigma_data = sigma_data
         self.reset_parameters()
 

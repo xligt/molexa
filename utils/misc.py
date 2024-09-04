@@ -28,6 +28,8 @@ def FindModel(directory):
 
 
 def GetModel(device):
+
+    dropout_prob = 0.1 #None or a value for the dropout probability
     
     diffu_params = \
     {'y_c': tensor([0., -0., -0.]),
@@ -61,7 +63,7 @@ def GetModel(device):
     nheads = int(8*scale)
     
     model = XMolNet(z_max, z_emb_dim, q_max, q_emb_dim, pos_out_dim, att_dim=att_dim, diffu_params = diffu_params, natts=natts, nheads=nheads, 
-                    dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, norm=LayerNorm, attention_type='full', lstm=True, sumup=False, num_steps=num_steps, device=device, natts_diffu=natts_diffu)    
+                    dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, norm=LayerNorm, attention_type='full', lstm=True, sumup=False, num_steps=num_steps, device=device, natts_diffu=natts_diffu, dropout_prob=dropout_prob)    
     return model, diffu_params
 
 

@@ -135,7 +135,7 @@ class SGD:
 
 
 class ResLayer(nn.Module):
-    def __init__(self, ni, no, res=True, act1=nn.ReLU, act2 = nn.ReLU, norm=LayerNorm, norm_dim=-1):
+    def __init__(self, ni, no, res=True, act1=nn.ReLU, act2 = nn.ReLU, norm=LayerNorm, norm_dim=-1, dropout_prob=None):
         super().__init__()
 
         self.res = res
@@ -144,6 +144,7 @@ class ResLayer(nn.Module):
         self.norm = norm(dim=norm_dim) if norm else fc.noop
 
         self.lin1 = nn.Linear(ni, ni)
+        self.dropout = nn.Dropout(p=dropout_prob) if dropout_prob is not None else fc.noop
         self.lin2 = nn.Linear(ni, no)
 
         # self.lin1 = nn.Linear(ni, no)
@@ -160,9 +161,9 @@ class ResLayer(nn.Module):
         
     def forward(self, x):
         if self.res:
-            return self.norm(self.idconv(x) + self.act2(self.lin2(self.act1(self.lin1(x)))))          
+            return self.norm(self.idconv(x) + self.act2(self.lin2(self.dropout(self.act1(self.lin1(x))))))          
         else:
-            return self.act2(self.lin2(self.act1(self.lin1(x))))
+            return self.act2(self.lin2(self.dropout(self.act1(self.lin1(x)))))
 
 
 def _fc_block(ni, no, norm=None):

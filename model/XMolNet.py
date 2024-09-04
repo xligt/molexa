@@ -12,7 +12,7 @@ from .XMolNet_Diffusion import Denoiser, NoiseIdentifier, PositionalEmbedding, F
 
 class XMolNet(nn.Module):
     def __init__(self, z_max, z_emb_dim, q_max, q_emb_dim, pos_out_dim, att_dim, diffu_params, natts=6, nheads=1, dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, 
-                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=7, S_churn=0, S_min=0, S_max=float('inf'), S_noise=1, heun=False, step_scale=1, device='cuda', natts_diffu=2):
+                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=7, S_churn=0, S_min=0, S_max=float('inf'), S_noise=1, heun=False, step_scale=1, device='cuda', natts_diffu=2, dropout_prob=None):
         super().__init__()
 
         self.y_c, self.y_hw, self.sigma_data = diffu_params['y_c'], diffu_params['y_hw'], diffu_params['sigma_data']
@@ -62,7 +62,7 @@ class XMolNet(nn.Module):
             self.UFO = UFO(self.att_dim)
             #self.UFO = mLSTM(tf_in_dim=self.att_dim, tf_out_dim=self.att_dim, nheads=nheads)
 
-        self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=self.nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=norm, norm_dim=-1) for i in range(natts)])
+        self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=self.nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=norm, norm_dim=-1, dropout_prob=dropout_prob) for i in range(natts)])
 
 
         # if self.sumup:
@@ -70,7 +70,7 @@ class XMolNet(nn.Module):
         # else:
         #     self.Prj_out = ResLayer(self.att_dim, 3, res=res, act1=act1, act2=None, norm=None) 
 
-        self.Denoiser = Denoiser(sigma_data=self.sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads)
+        self.Denoiser = Denoiser(sigma_data=self.sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, dropout_prob=dropout_prob)
 
         self.layers = [self.EMB_z, self.EMB_q, self.Linear_pos]
         self.mods = [self.Prj_edge, self.Denoiser]

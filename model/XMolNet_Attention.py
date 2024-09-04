@@ -3,6 +3,7 @@ from torch import nn
 from torch_geometric.utils import scatter, softmax
 from functools import partial
 from einops import rearrange
+import fastcore.all as fc
 
 from utils.utils_ML import initialization, ResBlock, LayerNorm, ResLayer
 
@@ -78,7 +79,7 @@ class mLSTM(nn.Module):
 
 
 class NodeAttentionLayer(nn.Module):
-    def __init__(self, tf_in_dim,tf_out_dim, nheads=1, dot_product=True, rga='n (h d) -> h n d', rgb='h n d -> n (h d)'):
+    def __init__(self, tf_in_dim,tf_out_dim, nheads=1, dot_product=True, rga='n (h d) -> h n d', rgb='h n d -> n (h d)', dropout_prob=None):
         super().__init__()
         self.tf_in_dim = tf_in_dim
         self.tf_out_dim = tf_out_dim
@@ -92,6 +93,8 @@ class NodeAttentionLayer(nn.Module):
 
         self.node_tf_qkv = nn.Linear(self.tf_in_dim, 3*self.tf_out_dim, bias=False)
         self.prj = nn.Linear(self.tf_out_dim, self.tf_out_dim, bias=False)
+        
+        self.dropout = nn.Dropout(p=dropout_prob) if dropout_prob is not None else fc.noop
 
         if not self.dot_product:
             self.tf_att = nn.Linear(int(2*self.tf_out_dim/self.nheads), 1, bias=True)
@@ -122,7 +125,7 @@ class NodeAttentionLayer(nn.Module):
             x_all = torch.cat([x_i_q, x_j_k], dim=-1)
             alpha = self.tf_att(x_all).squeeze(self.last_dim) 
         
-        alpha = softmax(alpha, i_node, num_nodes=x.size(self.reduce_dim), dim=self.reduce_dim)
+        alpha = softmax(self.dropout(alpha), i_node, num_nodes=x.size(self.reduce_dim), dim=self.reduce_dim)
     
         x = scatter(x_j_v * alpha.unsqueeze(self.last_dim), i_node, dim=self.reduce_dim, reduce='add')
 
@@ -136,7 +139,7 @@ class NodeAttentionLayer(nn.Module):
 
 
 class EdgeAttentionLayer(nn.Module):
-    def __init__(self, tf_in_dim, tf_out_dim, nheads=1, dot_product=True, rga='n (h d) -> h n d', rgb='h n d -> n (h d)'):
+    def __init__(self, tf_in_dim, tf_out_dim, nheads=1, dot_product=True, rga='n (h d) -> h n d', rgb='h n d -> n (h d)', dropout_prob=None):
         super().__init__()
 
         self.tf_in_dim = tf_in_dim
@@ -151,6 +154,8 @@ class EdgeAttentionLayer(nn.Module):
 
         self.edge_tf_qkv = nn.Linear(self.tf_in_dim, 3*self.tf_out_dim, bias=False)
         self.prj = nn.Linear(self.tf_out_dim, self.tf_out_dim, bias=False)
+
+        self.dropout = nn.Dropout(p=dropout_prob) if dropout_prob is not None else fc.noop
 
         if not self.dot_product:
             self.tf_att = nn.Linear(int(2*self.tf_out_dim/self.nheads), 1, bias=True)
@@ -182,7 +187,7 @@ class EdgeAttentionLayer(nn.Module):
             edge_all = torch.cat([edge_a_q, edge_b_k], dim=-1)
             alpha = self.tf_att(edge_all).squeeze(self.last_dim) 
 
-        alpha = softmax(alpha, idx_i_edge, num_nodes=edge_ij.size(self.reduce_dim), dim=self.reduce_dim) # note that num_nodes here is actually number of edges
+        alpha = softmax(self.dropout(alpha), idx_i_edge, num_nodes=edge_ij.size(self.reduce_dim), dim=self.reduce_dim) # note that num_nodes here is actually number of edges
 
         x = scatter(edge_b_v * alpha.unsqueeze(self.last_dim), idx_i_edge, dim=self.reduce_dim, reduce='add')
 
