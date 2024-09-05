@@ -29,8 +29,9 @@ def FindModel(directory):
 
 def GetModel(device):
 
-    dropout_prob = 0.1 #None or a value for the dropout probability
-    
+    dropout_prob = None #0.1 #None or a value for the dropout probability
+    print('dropout_prob:', dropout_prob)
+
     diffu_params = \
     {'y_c': tensor([0., -0., -0.]),
      'y_hw': tensor([23.59669, 19.97351, 15.76245]),
