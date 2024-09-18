@@ -36,7 +36,7 @@ class TransformPd_multInput(Transform):
         pos_raw = torch.tensor(xyz, dtype=torch.float32).view(-1,3)
         pos_raw[torch.isnan(pos_raw)] = 0
         
-        return Data(z = torch.tensor(atoms, dtype=torch.long),q = torch.tensor(charges, dtype=torch.long),
+        return Data(mol_tp=mol_tp,mol_name=row['mol_name'],z = torch.tensor(atoms, dtype=torch.long),q = torch.tensor(charges, dtype=torch.long),
                      y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
 
 class GeomDataLoaders():
