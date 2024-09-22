@@ -8,11 +8,11 @@ from utils.utils_Geom import edge_inds
 
 from .Attention_Block import Attention_Block, UFO
 from .XMolNet_Diffusion import Denoiser, NoiseIdentifier, PositionalEmbedding, FourierEmbedding, Sampler
-
+from .XMolNet_Evaluator import Evaluator
 
 class XMolNet(nn.Module):
     def __init__(self, z_max, z_emb_dim, q_max, q_emb_dim, pos_out_dim, att_dim, diffu_params, natts=6, nheads=1, dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, 
-                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=7, S_churn=0, S_min=0, S_max=float('inf'), S_noise=1, heun=False, step_scale=1, device='cuda', natts_diffu=2, dropout_prob=None):
+                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=7, S_churn=0, S_min=0, S_max=float('inf'), S_noise=1, heun=False, step_scale=1, device='cuda', natts_diffu=2, dropout_prob=None, err_bin_center=None):
         super().__init__()
 
         self.y_c, self.y_hw, self.sigma_data = diffu_params['y_c'], diffu_params['y_hw'], diffu_params['sigma_data']
@@ -38,6 +38,7 @@ class XMolNet(nn.Module):
         self.S_noise = S_noise
         self.heun = heun
         self.step_scale = step_scale
+        self.err_bin_center = err_bin_center.to(device)
 
         if attention_type == 'full':
             self.full = True
@@ -72,8 +73,10 @@ class XMolNet(nn.Module):
 
         self.Denoiser = Denoiser(sigma_data=self.sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, dropout_prob=dropout_prob)
 
+        self.Evaluator = Evaluator(num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, dropout_prob=dropout_prob, err_bin_center=self.err_bin_center)
+
         self.layers = [self.EMB_z, self.EMB_q, self.Linear_pos]
-        self.mods = [self.Prj_edge, self.Denoiser]
+        self.mods = [self.Prj_edge, self.Denoiser, self.Evaluator]
         self.blocks = [self.Att_Blocks]
 
         self.reset_parameters()
@@ -131,29 +134,38 @@ class XMolNet(nn.Module):
             
 ###
         if self.training:
+            self.y_eval = self.y.repeat(1, 1, 1)
+
             self.y = (self.y - self.y_c)/self.y_hw
             self.y = self.y.repeat(self.n_diffu, 1, 1)
-    
             rnd_normal = torch.randn([self.n_diffu, natoms.size(0), 1], device=pos.device).repeat_interleave(natoms, dim=1)        
             sigma = (rnd_normal*self.P_std + self.P_mean).exp()
-            noise = torch.randn_like(self.y)*sigma
-            #self.sigma_train = sigma[0,0,:] #to be deleted
-            #self.noise_train = noise[0,0,:] #to be deleted
-    
+            noise = torch.randn_like(self.y)*sigma 
             self.D_yn = self.Denoiser(self.y+noise, sigma, edge_ij.repeat(self.n_diffu, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
-            
-            return (self.D_yn, self.y, sigma)
+
+            y_diffu = torch.randn_like(self.y_eval)
+            self.pred = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
+                               sigma_min=self.sigma_min, sigma_max=self.sigma_max, rho=self.rho, S_churn=self.S_churn, S_min=self.S_min, S_max=self.S_max,
+                                S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device=pos.device)
+            self.pred = self.pred*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
+
+            self.err = (self.y_eval - self.pred).abs()
+            self.prob, self.err_pred = self.Evaluator(self.pred, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
+
+            return (self.D_yn, self.y, sigma, self.err, self.err_pred, self.prob)
         else:
             self.y = self.y.repeat(1, 1, 1)
             y_diffu = torch.randn_like(self.y)
-            #self.y_diffu_valid = y_diffu[0,0,:] #to be deleted
             
-            self.D_yn = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
+            self.pred = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
                                sigma_min=self.sigma_min, sigma_max=self.sigma_max, rho=self.rho, S_churn=self.S_churn, S_min=self.S_min, S_max=self.S_max, 
                                 S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device=pos.device)
-            self.D_yn = self.D_yn*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
-            
-            return self.D_yn
+            self.pred = self.pred*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
+
+            self.err = (self.y - self.pred).abs()
+            self.prob, self.err_pred = self.Evaluator(self.pred, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
+
+            return self.pred
         
             
         

@@ -48,10 +48,10 @@ class MetricsCB(Callback):
         self.metrics = metrics
         self.all_metrics = copy(metrics)
         self.all_metrics['loss'] = self.loss = Mean()
-        self.vars = ['epoch', 'loss_t', 'mae_t', 'loss_v', 'mae_v', 'lr', 'beta1', 'beta2', 'time', 'rank']
-        self.vars_valid = ['epoch', 'loss_v', 'mae_v', 'lr', 'beta1', 'beta2', 'time', 'rank']
-        self.vars_space = {'epoch':15, 'loss_t':15, 'mae_t':15, 'loss_v':15, 'mae_v':15, 'lr':15, 'beta1':15, 'beta2':15, 'time':15, 'rank':15}
-        self.vars_digit = {'loss_t':5, 'mae_t':9, 'loss_v':5, 'mae_v':9, 'lr':9, 'beta1':3, 'beta2':3}
+        self.vars = ['epoch', 'loss_t', 'mae_t', 'mse_eval_t', 'loss_v', 'mae_v', 'mse_eval_v', 'lr', 'beta1', 'beta2', 'time', 'rank']
+        self.vars_valid = ['epoch', 'loss_v', 'mae_v', 'mse_eval_v', 'lr', 'beta1', 'beta2', 'time', 'rank']
+        self.vars_space = {'epoch':15, 'loss_t':15, 'mae_t':15, 'mse_eval_t':15, 'loss_v':15, 'mae_v':15, 'mse_eval_v':15, 'lr':15, 'beta1':15, 'beta2':15, 'time':15, 'rank':15}
+        self.vars_digit = {'loss_t':5, 'mae_t':9, 'mse_eval_t':9, 'loss_v':5, 'mae_v':9, 'mse_eval_v':9, 'lr':9, 'beta1':3, 'beta2':3}
         self.report_dict = {} 
     
     def _log(self, d): print(d)
@@ -111,12 +111,16 @@ class MetricsCB(Callback):
         #x,*_,y = to_cpu(learn.batch) # was x,y,*_ = to_cpu(learn.batch)
         ###
         if isinstance(learn.model, torch.nn.parallel.DistributedDataParallel):
-            list_cpu = to_cpu([learn.model.module.D_yn, learn.model.module.y])
+            list_cpu = to_cpu([learn.model.module.D_yn, learn.model.module.y, learn.model.module.err, learn.model.module.err_pred]) if learn.training else to_cpu([learn.model.module.pred, learn.model.module.y, learn.model.module.err, learn.model.module.err_pred])
         else:
-            list_cpu = to_cpu([learn.model.D_yn, learn.model.y])
+            list_cpu = to_cpu([learn.model.D_yn, learn.model.y, learn.model.err, learn.model.err_pred]) if learn.training else to_cpu([learn.model.pred, learn.model.y, learn.model.err, learn.model.err_pred])
 
         ###
-        for m in self.metrics.values(): m.update(list_cpu[0], list_cpu[1])
+        for k,v in self.all_metrics.items(): 
+            if k=='mae':
+                v.update(list_cpu[0], list_cpu[1])
+            elif k=='mse_eval':
+                v.update(list_cpu[2].squeeze(), list_cpu[3].squeeze())
         self.loss.update(to_cpu(learn.loss), weight=list_cpu[1].size(1))
 
 class SaveCB(Callback):
@@ -169,7 +173,8 @@ class TrainCB(Callback):
     # def predict(self, learn): learn.preds = learn.model(*learn.batch[:self.n_inp])
     # def get_loss(self, learn): learn.loss = learn.loss_func(learn.preds, *learn.batch[self.n_inp:])
     def predict(self, learn): learn.preds = learn.model(learn.batch)
-    def get_loss(self, learn): learn.loss = learn.loss_func(learn.preds) if learn.training else learn.val_loss_func(learn.preds, learn.batch.y)
+    def get_loss(self, learn): 
+        learn.loss = learn.loss_func(learn.preds) if learn.training else learn.val_loss_func(learn.preds, learn.batch.y)
     def backward(self, learn): learn.loss.backward()
     def step(self, learn): learn.opt.step()
     def zero_grad(self, learn): learn.opt.zero_grad()

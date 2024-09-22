@@ -21,7 +21,32 @@ class EDM_MSELoss(nn.Module):
         loss = weight*((D_yn - y)**2)
         return loss.mean()*self.y_hw**2
         #note that the loss is scaled due to both the scaling factor and dim expansion
-        
+
+class EDM_MSELoss_EvalLoss(nn.Module):
+    def __init__(self, diffu_params, loss_eval_c=1e-3, err_bin_center=None, device='cuda'):
+        super(EDM_MSELoss_EvalLoss, self).__init__()
+        self.y_c, self.y_hw, self.sigma_data = diffu_params['y_c'], diffu_params['y_hw'], diffu_params['sigma_data']
+        self.y_c = self.y_c.mean()
+        self.y_hw = self.y_hw.mean()
+        self.loss_eval_c = loss_eval_c
+        self.err_bin_center = err_bin_center.view(1, 1, 1, -1).to(device)
+        self.num_classes = self.err_bin_center.size(-1)
+
+    def forward(self, out):
+        D_yn, y, sigma, err, err_pred, prob = out
+        weight = (sigma**2 + self.sigma_data**2)/(sigma*self.sigma_data)**2
+        loss = weight*((D_yn - y)**2)
+
+        differences = torch.abs(self.err_bin_center - err.unsqueeze(3)) 
+        indices = torch.argmin(differences, dim=-1)
+        one_hot_vectors = F.one_hot(indices, num_classes=self.num_classes)
+        loss_eval = -(one_hot_vectors*torch.log(prob))
+
+        return loss.mean()*self.y_hw**2 + loss_eval.mean()*self.loss_eval_c
+
+#        loss_eval = (err - err_pred)**2       
+#        return loss.mean()*self.y_hw**2 + loss_eval.mean()*self.loss_eval_c
+
 class MSELoss(nn.Module):
     def __init__(self):
         super(MSELoss, self).__init__()
