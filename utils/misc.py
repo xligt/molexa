@@ -27,7 +27,7 @@ def FindModel(directory):
     return directory+'/'+largest_model
 
 
-def GetModel(device, err_bin_center):
+def GetModel(device, err_bin_center, denoise, sample):
 
     dropout_prob = None #0.1 #None or a value for the dropout probability
     print('dropout_prob:', dropout_prob)
@@ -50,7 +50,7 @@ def GetModel(device, err_bin_center):
 
     natts_diffu = 2
 
-    num_steps =  15
+    num_steps =  5
     
     z_max = 20
     z_emb_dim = 64
@@ -64,7 +64,7 @@ def GetModel(device, err_bin_center):
     nheads = int(8*scale)
     
     model = XMolNet(z_max, z_emb_dim, q_max, q_emb_dim, pos_out_dim, att_dim=att_dim, diffu_params = diffu_params, natts=natts, nheads=nheads, 
-                    dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, norm=LayerNorm, attention_type='full', lstm=True, sumup=False, num_steps=num_steps, device=device, natts_diffu=natts_diffu, dropout_prob=dropout_prob, err_bin_center=err_bin_center)    
+                    dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, norm=LayerNorm, attention_type='full', lstm=True, sumup=False, num_steps=num_steps, device=device, natts_diffu=natts_diffu, dropout_prob=dropout_prob, err_bin_center=err_bin_center, denoise=denoise, sample=sample)    
     return model, diffu_params
 
 

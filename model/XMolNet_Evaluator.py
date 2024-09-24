@@ -27,7 +27,7 @@ class Evaluator(nn.Module):
         self.Prj_preAtt = ResLayer(self.num_channels*2 + self.att_dim, self.att_dim, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1)  
         self.UFO = UFO(self.att_dim)
         self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1,  
-                                                         rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob) for i in range(natts)]) #to be verified       
+                                                         rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob) for i in range(self.natts)]) #to be verified       
 
         self.Prj_out = ResLayer(self.att_dim, 3*self.num_bins, res=res, act1=act1, act2=None, norm=None) 
         

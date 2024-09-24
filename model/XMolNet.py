@@ -12,13 +12,15 @@ from .XMolNet_Evaluator import Evaluator
 
 class XMolNet(nn.Module):
     def __init__(self, z_max, z_emb_dim, q_max, q_emb_dim, pos_out_dim, att_dim, diffu_params, natts=6, nheads=1, dot_product=True, res=True, act1=nn.ReLU, act2=nn.ReLU, 
-                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=7, S_churn=0, S_min=0, S_max=float('inf'), S_noise=1, heun=False, step_scale=1, device='cuda', natts_diffu=2, dropout_prob=None, err_bin_center=None):
+                 norm=LayerNorm, attention_type='full', lstm=False, sumup=True, num_steps=5, sigma_min=0.002, sigma_max=80, rho=1.5, S_churn=30, S_min=0.01, S_max=1, S_noise=1.1, heun=False, step_scale=1, device='cuda', natts_diffu=2, dropout_prob=None, err_bin_center=None, denoise=True, sample=False):
         super().__init__()
 
         self.y_c, self.y_hw, self.sigma_data = diffu_params['y_c'], diffu_params['y_hw'], diffu_params['sigma_data']
         self.n_diffu, self.P_mean, self.P_std = diffu_params['n_diffu'], diffu_params['P_mean'], diffu_params['P_std']
         self.y_c = self.y_c.view(1,3).to(device)
         self.y_hw = self.y_hw.view(1,3).to(device)
+        self.denoise = denoise
+        self.sample = sample
 
         self.natts_diffu = natts_diffu
         
@@ -135,23 +137,31 @@ class XMolNet(nn.Module):
 ###
         if self.training:
             self.y_eval = self.y.repeat(1, 1, 1)
-
-            self.y = (self.y - self.y_c)/self.y_hw
-            self.y = self.y.repeat(self.n_diffu, 1, 1)
-            rnd_normal = torch.randn([self.n_diffu, natoms.size(0), 1], device=pos.device).repeat_interleave(natoms, dim=1)        
-            sigma = (rnd_normal*self.P_std + self.P_mean).exp()
-            noise = torch.randn_like(self.y)*sigma 
-            self.D_yn = self.Denoiser(self.y+noise, sigma, edge_ij.repeat(self.n_diffu, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
-
-            y_diffu = torch.randn_like(self.y_eval)
-            self.pred = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
-                               sigma_min=self.sigma_min, sigma_max=self.sigma_max, rho=self.rho, S_churn=self.S_churn, S_min=self.S_min, S_max=self.S_max,
-                                S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device=pos.device)
-            self.pred = self.pred*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
-
-            self.err = (self.y_eval - self.pred).abs()
-            self.prob, self.err_pred = self.Evaluator(self.pred, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
-
+            
+            if self.denoise:
+                self.y = (self.y - self.y_c)/self.y_hw
+                self.y = self.y.repeat(self.n_diffu, 1, 1)
+                rnd_normal = torch.randn([self.n_diffu, natoms.size(0), 1], device=pos.device).repeat_interleave(natoms, dim=1)        
+                sigma = (rnd_normal*self.P_std + self.P_mean).exp()
+                noise = torch.randn_like(self.y)*sigma 
+                self.D_yn = self.Denoiser(self.y+noise, sigma, edge_ij.repeat(self.n_diffu, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
+            else:
+                self.D_yn = torch.tensor([1.]).view(1,1,1)
+                self.y = self.D_yn
+                sigma = self.D_yn
+            if self.sample:
+                y_diffu = torch.randn_like(self.y_eval)
+                self.pred = Sampler(self.Denoiser, y_diffu, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge, num_steps=self.num_steps,
+                                   sigma_min=self.sigma_min, sigma_max=self.sigma_max, rho=self.rho, S_churn=self.S_churn, S_min=self.S_min, S_max=self.S_max,
+                                    S_noise=self.S_noise, heun=self.heun, step_scale=self.step_scale, device=pos.device)
+                self.pred = self.pred*self.y_hw.view(1, 1, 3) + self.y_c.view(1, 1, 3)
+    
+                self.err = (self.y_eval - self.pred).abs()
+                self.prob, self.err_pred = self.Evaluator(self.pred, edge_ij.repeat(1, 1, 1), i_node, j_node, idx_i_edge, idx_j_edge)
+            else:
+                self.err = torch.tensor([1., 1., 1.]).view(1,1,-1).to(pos.device)
+                self.err_pred = self.err
+                self.prob = torch.tensor([0.5,0.5,0.5]).view(1,1,-1,1).to(pos.device)
             return (self.D_yn, self.y, sigma, self.err, self.err_pred, self.prob)
         else:
             self.y = self.y.repeat(1, 1, 1)

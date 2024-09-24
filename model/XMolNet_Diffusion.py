@@ -55,7 +55,7 @@ class NoiseIdentifier(nn.Module):
         self.UFO = UFO(self.att_dim)
         #self.UFO = mLSTM(tf_in_dim=self.att_dim, tf_out_dim=self.att_dim, nheads=nheads)
         self.Att_Blocks = nn.ModuleList([Attention_Block(att_dim=self.att_dim, nheads=nheads, dot_product=dot_product, res=res, act1=act1, act2=act2, norm=LayerNorm, norm_dim=-1,  
-                                                         rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob) for i in range(natts)]) #to be verified       
+                                                         rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob) for i in range(self.natts)]) #to be verified       
 
         self.Attention_Decoder = NodeAttentionLayer(tf_in_dim=self.att_dim,tf_out_dim=self.att_dim, nheads=nheads, dot_product=dot_product, rga=self.rga, rgb=self.rgb, dropout_prob=dropout_prob)        
 

@@ -33,14 +33,14 @@ class TransformPd_multInput(Transform):
         columns = [dim+'_'+str(index) for index in indexes for dim in ['px','py','pz']]
         pxpypz = (row[columns]).tolist()
 
-        columns = [dim+'_'+str(index) for index in indexes for dim in ['errx','erry','errz']]
-        errxyz = (row[columns]).tolist()        
+#        columns = [dim+'_'+str(index) for index in indexes for dim in ['errx','erry','errz']]
+#        errxyz = (row[columns]).tolist()        
 
         pos_raw = torch.tensor(xyz, dtype=torch.float32).view(-1,3)
         pos_raw[torch.isnan(pos_raw)] = 0
         
-        return Data(mol_tp=mol_tp,mol_name=row['mol_name'],count=row['count'],z = torch.tensor(atoms, dtype=torch.long),q = torch.tensor(charges, dtype=torch.long),
-                     y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), errxyz = torch.tensor(errxyz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
+        return Data(z = torch.tensor(atoms, dtype=torch.long),q = torch.tensor(charges, dtype=torch.long),
+                     y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
 
 class GeomDataLoaders():
     def __init__(self,dataset_train, dataset_valid, batch_size, sampler=None, vshuffle=False):
