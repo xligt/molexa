@@ -18,7 +18,7 @@ class with_cbs:
 
 class Learner():
     def __init__(self, model, dls=(0,), loss_func=F.mse_loss, val_loss_func=F.mse_loss, cbs=None, load_path=None, opt_func=torch.optim.Adam, 
-                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None, freeze=False, load_opt=True):
+                 lr=0.001, beta1=0.9, beta2=0.99, parallel=False, device_id='cuda', rank=0, sampler=None, freeze=False, load_opt=True, exclude_loading=None):
         cbs = fc.L(cbs)
         fc.store_attr()
 
@@ -102,10 +102,20 @@ class Learner():
     def load_checkpoint(self, save_id=0, load_opt=True):
         if self.parallel:
             checkpoint = torch.load(self.load_path, map_location = {'cuda:%d' % save_id: 'cuda:%d' % self.device_id})
-            self.model.module.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            if self.exclude_loading is not None:
+                model_dict = {k: v for k, v in checkpoint['model_state_dict'].items() if not k.startswith(self.exclude_loading)}
+            else:
+                model_dict = checkpoint['model_state_dict']
+
+            self.model.module.load_state_dict(model_dict, strict=False)
         else:
             checkpoint = torch.load(self.load_path, map_location='cuda:0')
-            self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            if self.exclude_loading is not None:
+                model_dict = {k: v for k, v in checkpoint['model_state_dict'].items() if not k.startswith(self.exclude_loading)}
+            else:
+                model_dict = checkpoint['model_state_dict']
+ 
+            self.model.load_state_dict(model_dict, strict=False)
         
         if load_opt and not self.freeze: 
             try:

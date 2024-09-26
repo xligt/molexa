@@ -75,7 +75,7 @@ class XMolNet(nn.Module):
 
         self.Denoiser = Denoiser(sigma_data=self.sigma_data, model=NoiseIdentifier, EMB=FourierEmbedding, num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, dropout_prob=dropout_prob)
 
-        self.Evaluator = Evaluator(num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, dropout_prob=dropout_prob, err_bin_center=self.err_bin_center)
+        self.Evaluator = Evaluator(num_channels=256, natts=self.natts_diffu, att_dim=self.att_dim, nheads=self.nheads, err_bin_center=self.err_bin_center, dropout_prob=None)
 
         self.layers = [self.EMB_z, self.EMB_q, self.Linear_pos]
         self.mods = [self.Prj_edge, self.Denoiser, self.Evaluator]
