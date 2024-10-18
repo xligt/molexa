@@ -11,8 +11,8 @@ def edge_inds(
     full=True,
     triangular_out=True,
     triangular_in=True,
-    max_num_neighbors_node=10, #this and next line limits the training to molecules with less than 10 atoms
-    max_num_neighbors_edge=100,
+    max_num_neighbors_node=15,#10, #this and next line limits the training to molecules with less than 10 atoms
+    max_num_neighbors_edge=225,#100,
 ):
 
     edge_index = radius_graph(x, r=float('inf'), batch=batch, loop=loop, max_num_neighbors=max_num_neighbors_node)
