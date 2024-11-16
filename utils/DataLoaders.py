@@ -76,7 +76,7 @@ class TransformPd_multInput(Transform):
 
         pos_raw = torch.tensor(xyz, dtype=torch.float32).view(-1,3)
         pxpypz_raw = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3)
-        if self.rotation:
+        if self.rotation:# and torch.rand(1).item()>0.5:
             rot_mat = random_unit_rotation_matrix()
             pos_raw = torch.matmul(rot_mat, pos_raw.T).T
             pxpypz_raw = torch.matmul(rot_mat, pxpypz_raw.T).T
