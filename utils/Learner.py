@@ -58,7 +58,8 @@ class Learner():
 
     def fit(self, n_epochs=1, train=True, valid=True, cbs=None, lr=None, beta1=None, beta2=None):
         cbs = fc.L(cbs)
-        
+        self.train = train
+        self.valid = valid
         for cb in cbs: self.cbs.append(cb)
         try:
             self.n_epochs = n_epochs

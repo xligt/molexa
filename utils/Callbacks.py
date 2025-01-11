@@ -59,7 +59,8 @@ class MetricsCB(Callback):
     def before_fit(self, learn):
         learn.metrics = self
         if learn.rank==0:
-            header = f" ".join(map(lambda var: f"{f'{var}':<{self.vars_space[var]}}", self.vars))
+            self.vars_print = self.vars if learn.train else self.vars_valid
+            header = f" ".join(map(lambda var: f"{f'{var}':<{self.vars_space[var]}}", self.vars_print))
             print(header)
         sys.stdout.flush()
         
@@ -80,21 +81,12 @@ class MetricsCB(Callback):
             self.report_dict['beta2'] = learn.opt.param_groups[0]['betas'][1]      
             self.report_dict['time'] = datetime.now().strftime('%H:%M:%S,%m-%d')
             self.report_dict['rank'] = learn.rank
-            try:
+            if learn.train:
                 output = f" ".join(map(lambda var: f"{self.report_dict[var]:<{self.vars_space[var]}}" if var in ['time', 'epoch', 'rank'] else f"{self.report_dict[var]:<{self.vars_space[var]}.{self.vars_digit[var]}f}", self.vars))
                 print(output)
-
-                #for i in range(torch.cuda.device_count()):
-                #    print(f"rank: {learn.rank},GPU {i}: {torch.cuda.get_device_name(i)}")
-                #    print(f"  Allocated: {torch.cuda.memory_allocated(i) / 1024 ** 3:.2f} GB")
-                #    print(f"  Cached:    {torch.cuda.memory_reserved(i) / 1024 ** 3:.2f} GB")
-                #print('rank:', learn.rank, 'valid, batch.y[0]:', learn.batch.y[0])
-                #print('rank:', learn.rank, 'valid, learn.y_diffu_valid[0]:', learn.model.module.y_diffu_valid[0])
                 sys.stdout.flush()
-            except:
-                
-                header = f" ".join(map(lambda var: f"{f'{var}':<{self.vars_space[var]}}", self.vars_valid))
-                print(header)                
+            else:
+                      
                 output = f" ".join(map(lambda var: f"{self.report_dict[var]:<{self.vars_space[var]}}" if var in ['time', 'epoch', 'rank'] else f"{self.report_dict[var]:<{self.vars_space[var]}.{self.vars_digit[var]}f}", self.vars_valid))
                 print(output)
                 sys.stdout.flush()

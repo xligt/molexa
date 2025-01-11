@@ -45,34 +45,30 @@ class TransformPd_multInput(Transform):
 #                     y = pos_raw, pos = torch.tensor(pxpypz, dtype=torch.float32).view(-1,3), natoms = torch.tensor([num_atoms], dtype=torch.long))
 
 class GeomDataLoaders():
-    def __init__(self,dataset_train, dataset_valid, batch_size, sampler=None, vshuffle=False):
-        self.train = DataLoader(dataset_train, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-        self.valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=vshuffle)
+    def __init__(self,dataset, batch_size, sampler=None, vshuffle=False):
+        self.samples = DataLoader(dataset, batch_size=batch_size, sampler=sampler) if sampler is not None else DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
-def Get_Dataset(path='../download/dataset/dataset_2_7/', rank=0):
+def Get_Dataset_noSplit(path='../download/dataset/dataset_2_7/test/', rank=0):
 
-    dtps = ['train', 'valid']
-    tls_dict = {}
-    for dtp in dtps:
-        pkls = glob.glob(os.path.join(path+dtp, '**', '*.pkl'), recursive=True)
-        pkl_idxs = []
-        for pkl in pkls:
-            df = pd.read_pickle(pkl)
-            mol_tp = pkl.split('/')[-1].split('.')[0]
-            mol_tps = [mol_tp]*df.shape[0]
-            pkl_repeat = [pkl]*df.shape[0]
-            pkl_idxs += [f"{pklf},{mt},{idx}" for pklf, mt, idx in zip(pkl_repeat, mol_tps, df.index)]
-        tfm = TransformPd_multInput() 
-        tls_dict[dtp] = TfmdLists(pkl_idxs, tfm, splits=None) 
+    pkls = glob.glob(os.path.join(path, '**', '*.pkl'), recursive=True)
+    pkl_idxs = []
+    for pkl in pkls:
+        df = pd.read_pickle(pkl)
+        mol_tp = pkl.split('/')[-1].split('.')[0]
+        mol_tps = [mol_tp]*df.shape[0]
+        pkl_repeat = [pkl]*df.shape[0]
+        pkl_idxs += [f"{pklf},{mt},{idx}" for pklf, mt, idx in zip(pkl_repeat, mol_tps, df.index)]
+    tfm = TransformPd_multInput() 
+    tls = TfmdLists(pkl_idxs, tfm, splits=None) 
         
     if rank==0: 
-        print('# of valid:', len(tls_dict['valid'].train), '# of train:', len(tls_dict['train'].train))
+        print('# of samples:', len(tls.train))
         
-    return tls_dict['train'], tls_dict['valid']
+    return tls
 
-def Create_DataLoaders(tls_train, tls_valid, batch_size=128, sampler=None, vshuffle=False):
+def Create_DataLoaders_noSplit(tls, batch_size=128, sampler=None, vshuffle=False):
     
-    dls = GeomDataLoaders(tls_train, tls_valid, batch_size, sampler=sampler, vshuffle=vshuffle)
+    dls = GeomDataLoaders(tls, batch_size, sampler=sampler, vshuffle=vshuffle)
     
     return dls

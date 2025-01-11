@@ -97,7 +97,7 @@ class GeomDataLoaders():
         self.valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=vshuffle)
 
 
-def Get_Dataset(path='/sdf/data/lcls/ds/prj/prjsim00221/results/dataset/', rank=0):
+def Get_Dataset(path='../download/dataset/dataset_2_7/', rank=0):
 
     dtps = ['train', 'valid']
     tls_dict = {}
