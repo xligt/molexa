@@ -1,4 +1,4 @@
-import os, gdown, zipfile
+import os, gdown, zipfile, pickle
 
 def download_file_from_google_drive(file_id, destination):
     
@@ -32,3 +32,33 @@ def download_dataset_weights():
 
             os.remove(zip_file_path)
 
+def save_obj(obj, file_path):
+    with open(file_path, 'wb') as f:
+        pickle.dump(obj, f)
+
+def load_obj(file_path):
+    with open(file_path, 'rb') as f:
+        return pickle.load(f)
+
+def extract_values_from_pkl(folder_path, result_dict):
+
+    # Recursively iterate through all subdirectories and files
+    for root, _, files in os.walk(folder_path):
+        for file_name in files:
+            if file_name.endswith(".pkl"):
+                file_path = os.path.join(root, file_name)
+                print(file_path)
+
+                # Load the pickle file into a DataFrame
+                df = pd.read_pickle(file_path)
+
+                for _, row in df.iterrows():
+                    key1 = row['mol_name']
+                    key2 = file_name[:-4]
+
+                    if key1 not in result_dict.keys():
+                        result_dict[key1] = {}
+
+                    result_dict[key1][key2] = file_path
+
+    return result_dict
